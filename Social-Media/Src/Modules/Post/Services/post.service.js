@@ -282,9 +282,9 @@ export const adminDeletePost = async (req, res) => {
     });
   }
 
-  if (post.images.length > 0) {
+  if (post?.images?.length > 0) {
     for (const image of post.media) {
-      await cloudinary.uploader.destroy(image.public_id);
+      await cloudinary.uploader.destroy(image?.public_id);
     }
   }
 
@@ -410,3 +410,4 @@ export const sharePost = async (req, res) => {
     post: sharedPost,
   });
 };
+
