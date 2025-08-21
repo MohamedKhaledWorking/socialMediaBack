@@ -1,0 +1,94 @@
+profile api process.env.BACK_END_BASE_URL/api/users/update-profile => patch 
+
+username , bio , phone , address,birthday , profileImage , coverImage ,profileImageId , coverImageId
+
+{
+    "status": "success",
+    "message": "Profile updated successfully",
+    "user": {
+        "profileImage": {
+            "url": "https://res.cloudinary.com/drzyy9nij/image/upload/v1755779168/social/users/profile/pmmblfwsyktxofy2bfoo.jpg",
+            "public_id": "social/users/profile/pmmblfwsyktxofy2bfoo"
+        },
+        "coverImage": {
+            "url": "https://res.cloudinary.com/drzyy9nij/image/upload/v1755779169/social/users/cover/ymhy3wtickv5ftnzqqfp.jpg",
+            "public_id": "social/users/cover/ymhy3wtickv5ftnzqqfp"
+        },
+        "_id": "68a32b2a3411617dfe6030aa",
+        "username": "karim karam",
+        "email": "karimkaram@gmail.com",
+        "password": "$2b$10$k2iyElS2m6cpnM2Yq7oln.PC0ecqU8LfdrN6KrkMA2ATXlcyyOYFq",
+        "bio": "backend developer",
+        "status": "",
+        "moodStatus": "",
+        "phone": "U2FsdGVkX18G+pS+V5eAajNm9vWaiM7JDn736dtveuU=",
+        "address": "U2FsdGVkX1+VJVUFXI8RUoQwWYdDbC9NTQhd5qgoE98=",
+        "birthday": "2001-07-06T22:00:00.000Z",
+        "gender": "male",
+        "isVerified": true,
+        "role": "admin",
+        "isActive": true,
+        "isDeleted": false,
+        "isBlocked": false,
+        "isBanned": false,
+        "isOnline": false,
+        "lastSeen": "2025-08-18T13:31:22.500Z",
+        "pushSubscriptions": [],
+        "createdAt": "2025-08-18T13:31:22.507Z",
+        "updatedAt": "2025-08-21T13:25:44.703Z",
+        "__v": 0,
+        "friends": [
+            "68a311bc474aa7bc96583805"
+        ],
+        "followers": [
+            "68a33bab4f29de5e0910d8b5"
+        ],
+        "following": [
+            "68a311bc474aa7bc96583805"
+        ]
+    }
+}
+
+
+password api process.env.BACK_END_BASE_URL/api/users/update-password => patch 
+
+{
+    "oldPassword" : "Karimkaram123@",
+    "password" : "KAArimKaram123#",
+    "confirmPassword" : "KAArimKaram123#"
+}
+
+{
+    "status": "success",
+    "message": "Password updated successfully"
+}
+
+{
+    "status": "failure",
+    "error": "Old password is incorrect"
+}
+
+delete account /api/users/freeze-profile => patch 
+{
+    "status": "success",
+    "message": your account has been freezed"
+}
+{
+    "status": "failur",
+    "message": no user founded"
+}
+
+getsaved Posts  {{url}}/api/savedPosts/  => get
+
+return res.status(200).json({
+    status: "success",
+    savedPosts,
+    pagination: {
+      currentPage: parseInt(page),
+      totalPages: Math.ceil(total / limit),
+      totalSavedPosts: total,
+      hasNext: skip + savedPosts.length < total,
+      hasPrev: page > 1,
+    },
+  });
+

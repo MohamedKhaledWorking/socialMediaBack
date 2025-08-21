@@ -1,0 +1,56 @@
+this is backend request  const { query, page = 1, limit = 5 } = req.query;
+
+i want to fetch on this 2 api with the value that user inisertt in search input 
+/api/search/users => get
+/api/search/posts => get
+
+when user clikc on showmore i want to make the page has the full users / posts  depend on what he clicked 
+
+i want to show pagination depend on what he clicked
+return res.status(200).json({
+    status: "success",
+    posts,
+    pagination: {
+      currentPage: parseInt(page),
+      totalPages: Math.ceil(total / limit),
+      totalPosts: total,
+      hasNext: skip + posts.length < total,
+      hasPrev: page > 1,
+    },
+  });
+
+
+to get suggested friedns /api/friends => get 
+
+{
+    "status": "success",
+    "page": 1,
+    "limit": 10,
+    "total": 1,
+    "pages": 1,
+    "suggestions": [
+        {
+            "mutualCount": 1,
+            "_id": "68a32b2a3411617dfe6030aa",
+            "username": "karim karam",
+            "profileImage": {
+                "url": "https://res.cloudinary.com/drzyy9nij/image/upload/v1755779168/social/users/profile/pmmblfwsyktxofy2bfoo.jpg",
+                "public_id": "social/users/profile/pmmblfwsyktxofy2bfoo"
+            },
+            "email": "karimkaram@gmail.com"
+        }
+    ]
+}
+
+
+add friend /api/friends/68a311bc474aa7bc96583805 => get 
+{
+status : "success",
+message : "add request sent successffuly"
+}
+
+follow friend /api/follow/follow/68a311bc474aa7bc96583805 => get 
+{
+status : "success",
+message : "add request sent successffuly"
+}
