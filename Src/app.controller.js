@@ -12,6 +12,8 @@ import { friendRoutes } from "./Modules/Friend/friend.controller.js";
 import { followRoutes } from "./Modules/Follow/follow.controller.js";
 import { searchRoutes } from "./Modules/Search/search.controller.js";
 import { storiesRoutes } from "./Modules/Stories/stories.controller.js";
+import { messageRoutes } from "./Modules/Message/message.controller.js";
+import { notificationRoutes } from "./Modules/Notification/notification.controller.js";
 
 dotenv.config({ path: path.resolve("Src/Config/.env.dev") });
 
@@ -36,6 +38,8 @@ app.use("/api/follow", followRoutes);
 app.use("/api/savedPosts", savedPostsRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/stories", storiesRoutes);
+app.use("/api/messages", messageRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 const bootstrapFunction = () => {
   database_connection();
