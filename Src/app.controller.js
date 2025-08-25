@@ -1,8 +1,8 @@
 import express from "express";
 import dotenv from "dotenv";
 import path from "node:path";
-import database_connection from "./DB/connection.js";
 import cors from "cors";
+import database_connection from "./DB/connection.js";
 import { authRoutes } from "./Modules/Auth/auth.controller.js";
 import { userRoutes } from "./Modules/User/user.controller.js";
 import { postRoutes } from "./Modules/Post/post.controller.js";
@@ -13,7 +13,7 @@ import { followRoutes } from "./Modules/Follow/follow.controller.js";
 import { searchRoutes } from "./Modules/Search/search.controller.js";
 import { storiesRoutes } from "./Modules/Stories/stories.controller.js";
 import { messageRoutes } from "./Modules/Messages/message.controller.js";
-import { Server } from "socket.io";
+import { runIO } from "./Modules/Socket/socket.controller.js";
 
 dotenv.config({ path: path.resolve("Src/Config/.env.dev") });
 
@@ -23,7 +23,6 @@ const PORT = process.env.PORT;
 app.use(cors());
 app.use(express.json());
 
-// Basic root route
 app.get("/", (req, res) => {
   res.send(`API running on http://localhost:${PORT}`);
 });
@@ -42,6 +41,7 @@ app.use("/api/messages", messageRoutes);
 
 const bootstrapFunction = () => {
   database_connection();
+
   const server = app
     .listen(PORT, () => {
       console.log(`Server is running on http://localhost:${PORT}`);
@@ -50,38 +50,15 @@ const bootstrapFunction = () => {
       console.log(`something went wrong on running server  ${err}`);
     });
 
-  const io = new Server(server, { cors: { origin: "*" } });
-  io.on("connection", (socket) => {
-    console.log("A user connected");
-
-    console.log(socket);
-
-    console.log("*".repeat(50));
-
-    socket.emit("test:hello", { msg: "connected", id: socket.id });
-
-    // echo back whatever you send
-    socket.on("test:echo", (data) => {
-      console.log(data);
-      socket.emit("test:echo", { youSent: data, from: socket.id });
-    });
-
-    socket.on("send_message" , (data) => {
-      console.log(data);
-    })
-
-    // ping -> ack (tests acknowledgements)
-    socket.on("test:ping", (data, ack) => {
-      console.log("PING", data);
-      ack?.({ pong: true, at: Date.now() });
-    });
-
-    // broadcast (you can trigger this from any client later)
-    socket.on("test:broadcast", (data) => {
-      console.log(data);
-      socket.broadcast.emit("test:broadcast", { from: socket.id, ...data });
-    });
-  });
+  runIO(server);
 };
 
 export default bootstrapFunction;
+
+
+
+// gaber
+// eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YWNjNDFmYjc2YWQ0MTQ4NThhY2M5MiIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzU2MTUyOTIyLCJleHAiOjE3NTYxNjAxMjJ9._EZBq7RZNS3zvhtOS3O4I61idJab360WOaJNZVJNzFA
+
+// mohamed
+// eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YWNjNDEzYjc2YWQ0MTQ4NThhY2M4ZiIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzU2MTUyOTYzLCJleHAiOjE3NTYxNjAxNjN9.OmdGgZiI8JKu-qZfl8aM2dXe5dINDfCJMSQzU8VZFY0

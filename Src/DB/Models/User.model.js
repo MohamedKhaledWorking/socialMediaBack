@@ -65,8 +65,8 @@ const UserSchema = new Schema(
       linkedin: { type: String },
     },
     friends: [{ type: Schema.Types.ObjectId, ref: "User" }],
-    followers : [{ type: Schema.Types.ObjectId, ref: "User" }],
-    following : [{ type: Schema.Types.ObjectId, ref: "User" }],
+    followers: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    following: [{ type: Schema.Types.ObjectId, ref: "User" }],
     isActive: { type: Boolean, default: true },
     isDeleted: { type: Boolean, default: false },
     isBanned: { type: Boolean, default: false },
@@ -93,6 +93,8 @@ UserSchema.index({ username: "text", email: "text" });
 
 export const UserModel =
   mongoose.models.User || mongoose.model("User", UserSchema);
+
+export const socketConnections = new Map();
 
 // UserSchema.pre("save", async function (next) {
 //   if (!this.isModified("password")) return next();
