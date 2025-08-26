@@ -91,26 +91,26 @@ export const updateUserSchema = Joi.object().keys({
     "string.pattern.base":
       "Authorization header must be in Bearer token format",
   }),
-  status  : generalValidationFields.status.messages({
+  status: generalValidationFields.status.messages({
     "string.valid": "Status must be 'active', 'inactive', or 'frozen'",
   }),
-  socialLinks: Joi.object().keys({
-    facebook: Joi.string().messages({
+  socialLinks: Joi.object({
+    facebook: Joi.string().uri().messages({
       "string.uri": "Facebook link must be a valid URL",
     }),
-    instagram: Joi.string().messages({
+    instagram: Joi.string().uri().messages({
       "string.uri": "Instagram link must be a valid URL",
     }),
-    twitter: Joi.string().messages({
+    twitter: Joi.string().uri().messages({
       "string.uri": "Twitter link must be a valid URL",
     }),
-    tiktok: Joi.string().messages({
-      "string.uri": "LinkedIn link must be a valid URL",
+    tiktok: Joi.string().uri().messages({
+      "string.uri": "TikTok link must be a valid URL",
     }),
-    github: Joi.string().messages({
+    github: Joi.string().uri().messages({
       "string.uri": "GitHub link must be a valid URL",
-    })
-  })
+    }),
+  }).optional(),
 });
 
 export const updateUserPasswordSchema = Joi.object().keys({
