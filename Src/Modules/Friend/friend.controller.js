@@ -4,6 +4,7 @@ import { validateSchema } from "../../Middleware/validation.middleware.js";
 import {
   acceptFriend,
   addFriend,
+  cancelFriendRequest,
   getFriends,
   getPendingRequests,
   getSuggestedFriends,
@@ -41,6 +42,13 @@ friendRoutes.get(
   validateSchema(FriendSchema),
   authMiddleware,
   errorHandler(acceptFriend)
+);
+
+friendRoutes.get(
+  "/cancel/:friendId",
+  validateSchema(FriendSchema),
+  authMiddleware,
+  errorHandler(cancelFriendRequest)
 );
 
 friendRoutes.get(

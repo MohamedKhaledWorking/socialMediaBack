@@ -109,6 +109,31 @@ export const acceptFriend = async (req, res) => {
     .json({ status: "success", message: "Friend request accepted" });
 };
 
+export const cancelFriendRequest = async (req, res) => {
+  const { friendId } = req.params;
+  const userId = req.user._id;
+
+  if (!isObjectId(friendId)) {
+    return res
+      .status(400)
+      .json({ status: "failure", message: "Invalid friendId" });
+  }
+
+  const removed = await FriendModel.findOneAndDelete({
+    createdBy: userId,
+    friendId,
+  });
+  if (!removed) {
+    return res.status(404).json({
+      status: "failure",
+      message: "No pending request from this user",
+    });
+  }
+  return res
+    .status(200)
+    .json({ status: "success", message: "Friend request cancelled" });
+};
+
 export const rejectFriend = async (req, res) => {
   const { friendId } = req.params;
   const userId = req.user._id;
@@ -327,18 +352,15 @@ export const getSuggestedFriends = async (req, res) => {
   });
 };
 
-
 export const getPendingRequests = async (req, res) => {
-  const page =req.query.page ;
-  const limit = req.query.limit ;
+  const page = req.query.page;
+  const limit = req.query.limit;
   const skip = (page - 1) * limit;
   const userId = req.user._id;
- 
+
   const requests = await FriendModel.find({ friendId: userId })
     .skip(skip)
     .limit(limit)
     .populate({ path: "createdBy", select: "username profileImage email" });
-  return res
-    .status(200)
-    .json({ status: "success", requests: requests });
+  return res.status(200).json({ status: "success", requests: requests });
 };
