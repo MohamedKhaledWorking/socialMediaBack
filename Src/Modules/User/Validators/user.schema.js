@@ -104,9 +104,12 @@ export const updateUserSchema = Joi.object().keys({
     twitter: Joi.string().messages({
       "string.uri": "Twitter link must be a valid URL",
     }),
-    linkedin: Joi.string().messages({
+    tiktok: Joi.string().messages({
       "string.uri": "LinkedIn link must be a valid URL",
     }),
+    github: Joi.string().messages({
+      "string.uri": "GitHub link must be a valid URL",
+    })
   })
 });
 
