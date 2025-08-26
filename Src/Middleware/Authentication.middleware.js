@@ -28,7 +28,7 @@ export async function authMiddleware(req, res, next) {
 
     const decoded = verifyAccessToken(token, signature);
     const user = await UserModel.findById(decoded.id).select(
-      "-otp -__v -createdAt -updatedAt -otpExpires -isVerified"
+      "-otp -__v -updatedAt -otpExpires -isVerified"
     );
     if (!user) {
       return res.status(404).json({status: "failure",  error: "User not found" });
