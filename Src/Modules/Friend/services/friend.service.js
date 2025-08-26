@@ -326,3 +326,19 @@ export const getSuggestedFriends = async (req, res) => {
     suggestions: payload.data,
   });
 };
+
+
+export const getPendingRequests = async (req, res) => {
+  const page =req.query.page ;
+  const limit = req.query.limit ;
+  const skip = (page - 1) * limit;
+  const userId = req.user._id;
+ 
+  const requests = await FriendModel.find({ friendId: userId })
+    .skip(skip)
+    .limit(limit)
+    .populate({ path: "createdBy", select: "username profileImage email" });
+  return res
+    .status(200)
+    .json({ status: "success", requests: requests });
+};

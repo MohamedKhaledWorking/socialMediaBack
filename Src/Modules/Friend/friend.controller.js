@@ -5,6 +5,7 @@ import {
   acceptFriend,
   addFriend,
   getFriends,
+  getPendingRequests,
   getSuggestedFriends,
   rejectFriend,
   unfriend,
@@ -20,6 +21,13 @@ friendRoutes.get(
   authMiddleware,
   errorHandler(getSuggestedFriends)
 );
+
+friendRoutes.get(
+  "/requests",
+  authMiddleware,
+  errorHandler(getPendingRequests)
+)
+
 
 friendRoutes.get(
   "/:friendId",
@@ -48,5 +56,6 @@ friendRoutes.get(
   authMiddleware,
   errorHandler(unfriend)
 );
+
 
 friendRoutes.get("/", authMiddleware, errorHandler(getFriends));
