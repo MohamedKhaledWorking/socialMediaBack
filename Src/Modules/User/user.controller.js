@@ -52,7 +52,6 @@ userRoutes.get(
 userRoutes.get(
   "/getUser/:userId",
   authMiddleware,
-  authorizeRoles("admin"),
   errorHandler(getUserById)
 );
 
