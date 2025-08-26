@@ -62,7 +62,7 @@ const UserSchema = new Schema(
       instagram: { type: String },
       twitter: { type: String },
       github: { type: String },
-      linkedin: { type: String },
+      tiktok: { type: String },
     },
     friends: [{ type: Schema.Types.ObjectId, ref: "User" }],
     followers: [{ type: Schema.Types.ObjectId, ref: "User" }],

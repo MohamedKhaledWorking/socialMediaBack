@@ -9,21 +9,33 @@ export const getProfile = (req, res) => {
   if (!user) {
     return res.status(404).json({ status: "failure", error: "User not found" });
   }
+  user.phone = decrypt(user.phone, process.env.PHONE_ENCRYPTION_KEY);
+  user.address = decrypt(user.address, process.env.ADDRESS_ENCRYPTION_KEY);
+  
   return res.status(200).json({ status: "success", user });
 };
 
 export const getAllUsers = async (req, res) => {
-  const users = await UserModel.find({ isBanned: false });
-  const decryptedPhone = users.map((user) =>
-    decrypt(user.phone, process.env.PHONE_ENCRYPTION_KEY)
-  );
-  const decryptedAddress = users.map((user) =>
-    decrypt(user.address, process.env.ADDRESS_ENCRYPTION_KEY)
-  );
+  const PHONE_KEY = process.env.PHONE_ENCRYPTION_KEY;
+  const ADDR_KEY  = process.env.ADDRESS_ENCRYPTION_KEY;
 
-  await users
+  // If you use .lean(), you must decrypt manually (no model transforms).
+  const users = await UserModel.find({ isBanned: false })
+    .select('-password -__v') // never return sensitive data
+    .lean();
 
-  return res.status(200).json({ status: "success", users });
+  const decryptSafe = (val, key) => {
+    if (!val) return val;
+    try { return decrypt(val, key); } catch { return val; }
+  };
+
+  const output = users.map(u => ({
+    ...u,
+    phone:   decryptSafe(u.phone,   PHONE_KEY),
+    address: decryptSafe(u.address, ADDR_KEY),
+  }));
+
+  return res.status(200).json({ status: 'success', users: output });
 };
 
 export const getAllBannedUsers = async (req, res) => {

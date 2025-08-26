@@ -13,7 +13,7 @@ export const generalValidationFields = {
     .max(90)
     .pattern(/^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$ %^&*-]).{8,}$/),
   confirmPassword: Joi.string().valid(Joi.ref("password")),
-  username: Joi.string().min(3).max(30).required(),
+  username: Joi.string().min(3).max(30),
   profileImage: Joi.string(),
   coverImage: Joi.string(),
   bio: Joi.string().max(500),
@@ -24,4 +24,5 @@ export const generalValidationFields = {
   role: Joi.string().valid("user", "admin"),
   isVerified: Joi.boolean(),
   authorization: Joi.string(),
+  status: Joi.string(),
 };

@@ -65,18 +65,9 @@ export const unsavePost = async (req, res) => {
       error: "Invalid post ID",
     });
   }
-
-  const post = await PostModel.findById(postId);
-  if (!post) {
-    return res.status(404).json({
-      status: "failure",
-      error: "Post not found",
-    });
-  }
-
   const savedPost = await SavedPostModel.findOneAndDelete({
     user: userId,
-    post: postId,
+    _id: postId,
   });
 
   if (!savedPost) {
@@ -94,7 +85,7 @@ export const unsavePost = async (req, res) => {
 
 export const getSavedPosts = async (req, res) => {
   const userId = req.user._id;
-  const { page = 1, limit = 10 } = req.query;
+  const { page = 1, limit = 1 } = req.query;
   const skip = (page - 1) * limit;
 
   const savedPosts = await SavedPostModel.find({ user: userId })

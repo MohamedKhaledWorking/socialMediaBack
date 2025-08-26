@@ -1,0 +1,363 @@
+import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
+import toast from "react-hot-toast";
+import {
+  BookmarkX,
+  MessageCircle,
+  Heart,
+  Search,
+  LayoutGrid,
+  List,
+  X,
+  Loader2,
+  ChevronRight,
+  ChevronLeft,
+} from "lucide-react";
+
+const getToken = () => localStorage.getItem("token") || "";
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_BACK_END_BASE,
+});
+
+const normalize = (s = "") => s.toLowerCase().trim();
+
+function mapSavedPosts(apiSavedPosts = []) {
+  return apiSavedPosts.map((row, i) => {
+    const p = row?.post ?? {};
+    const media0 = p?.media?.[0]?.url || "";
+    const tagArr = Array.isArray(p?.tags) ? p.tags : [];
+
+    return {
+      savedPostId: row?._id,
+      id: p?._id ?? `saved-${i}`,
+      author: p?.user?.username || "Unknown",
+      title: p?.content || p?.mood || "(no text)",
+      mood: p?.mood || "",
+      date: p?.createdAt || row?.createdAt || new Date().toISOString(),
+      likes: p?.likesCount ?? 0,
+      comments: p?.commentsCount ?? 0,
+      tags: tagArr
+        .map((t) => (typeof t === "string" ? t : t?.name ?? ""))
+        .filter(Boolean)
+        .map((t) => (t.startsWith("#") ? t : `#${t}`)),
+      mediaUrl: media0,
+      isVideo: /(\.mp4|\.webm)$/i.test(media0) || /\/video(s)?\//i.test(media0),
+    };
+  });
+}
+
+export default function SavedPosts() {
+  const [view, setView] = useState("grid");
+  const [query, setQuery] = useState("");
+  const [activeTag, setActiveTag] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+
+  const [rawSaved, setRawSaved] = useState([]);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(12);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 0,
+    totalSavedPosts: 0,
+    hasNext: false,
+    hasPrev: false,
+  });
+
+  const [deletingIds, setDeletingIds] = useState(new Set());
+
+  useEffect(() => {
+    const controller = new AbortController();
+    (async () => {
+      setLoading(true);
+      setErr("");
+      try {
+        const token = getToken();
+        if (!token) {
+          setErr("Missing auth token. Please sign in again.");
+          setLoading(false);
+          return;
+        }
+        const res = await api.get(
+          `/api/savedPosts/?page=${page}&limit=${limit}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: controller.signal,
+          }
+        );
+        const data = res?.data || {};
+        setRawSaved(Array.isArray(data.savedPosts) ? data.savedPosts : []);
+        data.pagination && setPagination(data.pagination);
+      } catch (e) {
+        if (!axios.isCancel(e)) {
+          setErr(
+            e?.response?.data?.message ||
+              e.message ||
+              "Failed to fetch saved posts."
+          );
+          toast.error(
+            e?.response?.data?.message || "Failed to fetch saved posts"
+          );
+        }
+      } finally {
+        setLoading(false);
+      }
+    })();
+    return () => controller.abort();
+  }, [page, limit]);
+
+  const posts = useMemo(() => mapSavedPosts(rawSaved), [rawSaved]);
+
+  const filteredPosts = useMemo(() => {
+    const q = normalize(query).replace(/^#/, "");
+    return posts.filter((post) => {
+      const inTitle = normalize(post.title).includes(q);
+      const inAuthor = normalize(post.author).includes(q);
+      const inMood = normalize(post.mood || "").includes(q);
+      const inTags = post.tags
+        .map((t) => normalize(t).replace(/^#/, ""))
+        .some((t) => t.includes(q));
+
+      const matchesQuery =
+        q === "" ? true : inTitle || inAuthor || inTags || inMood;
+
+      const matchesActiveTag = !activeTag
+        ? true
+        : post.tags
+            .map((t) => normalize(t).replace(/^#/, ""))
+            .some((t) => t === normalize(activeTag).replace(/^#/, ""));
+
+      return matchesQuery && matchesActiveTag;
+    });
+  }, [posts, query, activeTag]);
+
+  const handleTagClick = (tag) => {
+    setActiveTag((curr) => {
+      const clean = tag.replace(/^#/, "");
+      const same = normalize(curr).replace(/^#/, "") === normalize(clean);
+      return same ? "" : tag;
+    });
+  };
+
+  const handleDelete = async (savedPostId) => {
+    console.log(savedPostId);
+    if (!savedPostId) return;
+
+    const token = getToken();
+    if (!token) {
+      toast.error("Missing auth token. Please sign in again.");
+      return;
+    }
+
+    const prev = rawSaved;
+    const next = prev.filter((row) => row._id !== savedPostId);
+    setRawSaved(next);
+
+    setDeletingIds((s) => new Set(s).add(savedPostId));
+
+    try {
+      await api.delete(`/api/savedPosts/${savedPostId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      toast.success("Removed from saved posts");
+    } catch (e) {
+      setRawSaved(prev);
+      const msg =
+        e?.response?.data?.message ||
+        e.message ||
+        "Failed to delete saved post";
+      toast.error(msg);
+    } finally {
+      setDeletingIds((s) => {
+        const copy = new Set(s);
+        copy.delete(savedPostId);
+        return copy;
+      });
+    }
+  };
+
+  return (
+    <div className="p-4 md:p-8 max-w-6xl mx-auto">
+      <h1 className="text-2xl md:text-3xl font-bold mb-1">Saved Posts</h1>
+      <p className="text-gray-500 mb-6">
+        Your bookmarked posts and favorite content
+      </p>
+
+      <div className="mb-6 border border-gray-200 p-4 md:p-6 rounded-xl bg-slate-50">
+        <div className="relative w-full">
+          <Search className="absolute top-2.5 left-3 text-gray-400" size={18} />
+          <input
+            type="text"
+            placeholder="Search by text, author, tag, or mood…"
+            className="w-full pl-10 pr-28 py-2 rounded-lg border border-gray-300 bg-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-300/70"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {activeTag && (
+            <button
+              onClick={() => setActiveTag("")}
+              className="absolute right-2 top-1.5 inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700 hover:bg-orange-200 transition"
+              title="Clear tag filter"
+            >
+              <span>#{activeTag.replace(/^#/, "")}</span>
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {err && (
+        <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
+          {err}
+        </div>
+      )}
+      {loading && (
+        <div className="mb-4 inline-flex items-center gap-2 text-gray-600">
+          <Loader2 className="animate-spin" size={18} />
+          Loading saved posts…
+        </div>
+      )}
+
+      <div className="flex items-center justify-end mb-4 gap-2">
+        <button
+          onClick={() => setView("grid")}
+          className={`p-2 rounded ${view === "grid" ? "bg-gray-200" : ""}`}
+        >
+          <LayoutGrid size={18} />
+        </button>
+        <button
+          onClick={() => setView("list")}
+          className={`p-2 rounded ${view === "list" ? "bg-gray-200" : ""}`}
+        >
+          <List size={18} />
+        </button>
+      </div>
+
+      <div
+        className={
+          view === "grid" ? "grid sm:grid-cols-2 gap-6" : "flex flex-col gap-6"
+        }
+      >
+        {filteredPosts.map((post) => {
+          const isDeleting = deletingIds.has(post.savedPostId);
+          return (
+            <div
+              key={post.id}
+              className="border rounded-xl p-4 shadow-sm hover:shadow-md duration-300 group bg-white"
+            >
+              <div className="overflow-hidden rounded-lg h-80">
+                {post.mediaUrl ? (
+                  post.isVideo ? (
+                    <video
+                      src={post.mediaUrl}
+                      controls
+                      className="mb-3 w-full  h-80 object-cover"
+                    />
+                  ) : (
+                    <img
+                      src={post.mediaUrl}
+                      alt="Post"
+                      className="mb-3 w-full h-80 object-cover group-hover:scale-[1.03] duration-500"
+                    />
+                  )
+                ) : null}
+              </div>
+
+              {post.tags?.length > 0 && (
+                <div className="flex flex-wrap gap-2 text-sm text-orange-600 my-3">
+                  {post.tags.map((tag, i) => (
+                    <button
+                      type="button"
+                      key={i}
+                      onClick={() => handleTagClick(tag)}
+                      className={`px-3 py-1.5 rounded-full border duration-300 ${
+                        normalize(activeTag) === normalize(tag)
+                          ? "bg-orange-500 text-white border-orange-500"
+                          : "border-orange-500 hover:bg-orange-500 hover:text-white"
+                      }`}
+                      title="Filter by this tag"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <h2 className="font-semibold text-base my-5 break-words ">
+                {post.title}
+              </h2>
+              <p className="text-sm text-gray-500 my-5 flex justify-between">
+                <p>By {post.author}</p>  <p>Saved {new Date(post.date).toLocaleString()}</p>
+              </p>
+
+              <div className="flex items-center justify-between mt-3 text-sm text-gray-600">
+                <div className="flex gap-4 my-3">
+                  <div className="flex items-center gap-1">
+                    <Heart size={14} /> {post.likes}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <MessageCircle size={14} /> {post.comments}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => handleDelete(post.savedPostId)}
+                  disabled={isDeleting}
+                  className={`p-3 rounded-full flex items-center justify-center duration-300 ${
+                    isDeleting
+                      ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      : "text-gray-400 hover:bg-orange-500 hover:text-white"
+                  }`}
+                  title={isDeleting ? "Removing…" : "Remove from saved posts"}
+                >
+                  {isDeleting ? (
+                    <Loader2 className="animate-spin" size={18} />
+                  ) : (
+                    <BookmarkX size={20} />
+                  )}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {!loading && filteredPosts.length === 0 && (
+        <div className="text-center text-orange-500 py-12 border rounded-xl bg-white w-full">
+          No posts founded.
+        </div>
+      )}
+
+      {pagination?.totalSavedPosts > 0 && (
+        <div className="flex items-center justify-center gap-2 mt-8">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={!pagination.hasPrev}
+            className={`px-3 py-1.5 rounded border ${
+              pagination.hasPrev
+                ? "bg-orange-50 text-orange-500 hover:bg-orange-100 "
+                : "bg-white-50 text-gray-500 cursor-not-allowed flex "
+            }`}
+          >
+            <ChevronLeft /> Prev
+          </button>
+          <span className="text-sm text-gray-600">
+            Page {pagination.currentPage} of{" "}
+            {Math.max(1, pagination.totalPages)}
+          </span>
+          <button
+            onClick={() => setPage((p) => p + 1)}
+            disabled={!pagination.hasNext}
+            className={`px-3 py-1.5 rounded border ${
+              pagination.hasNext
+                ? "bg-orange-50 text-orange-500 hover:bg-orange-100 "
+                : "bg-white-50 text-gray-500 cursor-not-allowed flex "
+            }`}
+          >
+            Next <ChevronRight />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
