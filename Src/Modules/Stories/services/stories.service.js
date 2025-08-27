@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import mongoose from "mongoose";
 import { StoryModel } from "../../../DB/Models/Story.model.js";
 import { cloudinary as getCloudinary } from "../../../Utils/cloudinary.utils.js";
+import { UserModel } from "../../../DB/Models/User.model.js";
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
