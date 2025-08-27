@@ -4,20 +4,15 @@ import { authMiddleware } from "../../Middleware/Authentication.middleware.js";
 import { errorHandler } from "../../Middleware/errorHandler.middleware.js";
 import {
   createStory,
-  deleteStory,
   getStoriesFeed,
+  deleteStory,
   getStoryMedia,
 } from "./services/stories.service.js";
 import { Multer } from "../../Middleware/multer.middleware.js";
 
 export const storiesRoutes = Router();
 
-const upload = Multer([
-  "image/jpeg",
-  "image/png",
-  "image/jpg",
-  "video/mp4", 
-]);
+const upload = Multer(["image/jpeg", "image/png", "image/jpg", "video/mp4"]);
 
 storiesRoutes.post(
   "/",
@@ -30,11 +25,11 @@ storiesRoutes.post(
 );
 
 storiesRoutes.get(
-  '/friends-stories',
+  "/friends-stories",
   authMiddleware,
   errorHandler(getStoriesFeed)
-)
+);
 
 storiesRoutes.delete("/:id", authMiddleware, errorHandler(deleteStory));
 
-storiesRoutes.get("/:id", authMiddleware, errorHandler(getStoryMedia));
+storiesRoutes.get("/story/:id", authMiddleware, errorHandler(getStoryMedia));
