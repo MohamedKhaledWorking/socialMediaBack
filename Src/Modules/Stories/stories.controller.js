@@ -5,6 +5,7 @@ import { errorHandler } from "../../Middleware/errorHandler.middleware.js";
 import {
   createStory,
   deleteStory,
+  getStoriesFeed,
   getStoryMedia,
 } from "./services/stories.service.js";
 import { Multer } from "../../Middleware/multer.middleware.js";
@@ -27,6 +28,12 @@ storiesRoutes.post(
   ]),
   errorHandler(createStory)
 );
+
+storiesRoutes.get(
+  '/friends-stories',
+  authMiddleware,
+  errorHandler(getStoriesFeed)
+)
 
 storiesRoutes.delete("/:id", authMiddleware, errorHandler(deleteStory));
 
