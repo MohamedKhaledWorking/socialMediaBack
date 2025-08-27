@@ -24,6 +24,8 @@ storiesRoutes.post(
   errorHandler(createStory)
 );
 
+storiesRoutes.get("/story/:id", authMiddleware, errorHandler(getStoryMedia));
+
 storiesRoutes.get(
   "/friends-stories",
   authMiddleware,
@@ -32,4 +34,3 @@ storiesRoutes.get(
 
 storiesRoutes.delete("/:id", authMiddleware, errorHandler(deleteStory));
 
-storiesRoutes.get("/story/:id", authMiddleware, errorHandler(getStoryMedia));

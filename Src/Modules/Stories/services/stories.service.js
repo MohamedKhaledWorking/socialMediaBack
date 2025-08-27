@@ -105,6 +105,58 @@ export const deleteStory = async (req, res) => {
     .json({ status: "success", message: "Story and media deleted" });
 };
 
+export const getStoriesFeed = async (req, res) => {
+  const me = await UserModel.findById(req.user._id).select("friends").lean();
+
+  if (!me) {
+    return res
+      .status(404)
+      .json({ status: "failure", message: "User not found" });
+  }
+  const userIds = Array.from(
+    new Set([String(req.user._id), ...(me.friends ?? []).map(String)])
+  );
+
+  if (userIds.length === 0) {
+    return res.status(200).json({ status: "success", stories: [] });
+  }
+  const now = new Date();
+  const filter = {
+    user: { $in: userIds },
+    expiresAt: { $gt: now },
+  };
+
+  const raw = await StoryModel.find(filter)
+    .sort({ createdAt: -1, _id: -1 })
+    .select("_id user caption link createdAt media thumbnail")
+    .lean();
+
+  const isMine = (uid) => String(uid) === String(req.user._id);
+  raw.sort((a, b) => {
+    const aMine = isMine(a.user);
+    const bMine = isMine(b.user);
+    if (aMine !== bMine) return aMine ? -1 : 1; // mine always before friends
+    const t = b.createdAt - a.createdAt; // newest first
+    if (t) return t;
+    return String(b._id).localeCompare(String(a._id));
+  });
+
+  const stories = raw.map((s) => ({
+    _id: s._id,
+    user: s.user,
+    createdAt: s.createdAt,
+    caption: s.caption ?? null,
+    link: s.link ?? null,
+    thumbnail: s.thumbnail ?? null,
+    media: (s.media ?? []).map((m) => m?.url).filter(Boolean),
+  }));
+
+  return res.status(200).json({
+    status: "success",
+    stories,
+  });
+};
+
 export const getStoryMedia = async (req, res) => {
   const { id } = req.params;
   if (!isValidId(id)) {
@@ -131,84 +183,6 @@ export const getStoryMedia = async (req, res) => {
   return res.status(200).json({ status: "success", media });
 };
 
-export const getFriendsStoryHeads = async (req, res) => {
-  const me = await UserModel.findById(req.user._id).select("friends").lean();
-  if (!me)
-    return res
-      .status(404)
-      .json({ status: "failure", message: "User not found" });
-
-  if (!me.friends?.length) {
-    return res.status(200).json({ status: "success", heads: [] });
-  }
-
-  const pipeline = [
-    { $match: { user: { $in: me.friends }, expiresAt: { $gt: new Date() } } },
-    { $sort: { createdAt: -1 } }, // latest first
-    {
-      $group: {
-        _id: "$user",
-        latestStoryId: { $first: "$_id" },
-        thumbnail: { $first: "$thumbnail" },
-        lastUpdated: { $first: "$createdAt" },
-        count: { $sum: 1 },
-      },
-    },
-    {
-      $lookup: {
-        from: "users",
-        localField: "_id",
-        foreignField: "_id",
-        as: "user",
-        pipeline: [{ $project: { username: 1, profileImage: 1 } }],
-      },
-    },
-    { $unwind: "$user" },
-    {
-      $project: {
-        _id: 0,
-        user: 1,
-        latestStoryId: 1,
-        thumbnail: 1,
-        lastUpdated: 1,
-        count: 1,
-      },
-    },
-    { $sort: { lastUpdated: -1 } },
-  ];
-
-  const heads = await StoryModel.aggregate(pipeline);
-  return res.status(200).json({ status: "success", heads });
-};
-
-export const getUserActiveStories = async (req, res) => {
-  const { userId } = req.params;
-  if (!isValidId(userId)) {
-    return res
-      .status(400)
-      .json({ status: "failure", message: "Invalid userId" });
-  }
-
-  const stories = await StoryModel.find({
-    user: userId,
-    expiresAt: { $gt: new Date() },
-  })
-    .sort({ createdAt: -1 })
-    .select("_id caption link createdAt media thumbnail")
-    .lean();
-
-  const data = stories.map((s) => ({
-    _id: s._id,
-    createdAt: s.createdAt,
-    caption: s.caption,
-    link: s.link,
-    thumbnail: s.thumbnail,
-    media: (s.media ?? []).map((m) => m.url),
-  }));
-
-  return res.status(200).json({ status: "success", stories: data });
-};
-
 export const viewStory = async (req, res) => {
   const { id } = req.params;
   if (!isValidId(id)) {
@@ -232,56 +206,4 @@ export const viewStory = async (req, res) => {
   return res
     .status(200)
     .json({ status: "success", viewsCount: updated.viewsCount });
-};
-
-export const getStoriesFeed = async (req, res) => {
-    const me = await UserModel.findById(req.user._id).select("friends").lean();
-
-    if (!me) {
-      return res
-        .status(404)
-        .json({ status: "failure", message: "User not found" });
-    }
-    const userIds = Array.from(
-      new Set([String(req.user._id), ...(me.friends ?? []).map(String)])
-    );
-
-    if (userIds.length === 0) {
-      return res.status(200).json({ status: "success", stories: [] });
-    }
-    const now = new Date();
-    const filter = {
-      user: { $in: userIds },
-      expiresAt: { $gt: now },
-    };
-
-    const raw = await StoryModel.find(filter)
-      .sort({ createdAt: -1, _id: -1 })
-      .select("_id user caption link createdAt media thumbnail")
-      .lean();
-
-    const isMine = (uid) => String(uid) === String(req.user._id);
-    raw.sort((a, b) => {
-      const aMine = isMine(a.user);
-      const bMine = isMine(b.user);
-      if (aMine !== bMine) return aMine ? -1 : 1; // mine always before friends
-      const t = b.createdAt - a.createdAt; // newest first
-      if (t) return t;
-      return String(b._id).localeCompare(String(a._id));
-    });
-
-    const stories = raw.map((s) => ({
-      _id: s._id,
-      user: s.user,
-      createdAt: s.createdAt,
-      caption: s.caption ?? null,
-      link: s.link ?? null,
-      thumbnail: s.thumbnail ?? null,
-      media: (s.media ?? []).map((m) => m?.url).filter(Boolean),
-    }));
-
-    return res.status(200).json({
-      status: "success",
-      stories,
-    });
 };
