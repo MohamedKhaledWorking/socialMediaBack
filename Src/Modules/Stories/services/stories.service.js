@@ -208,5 +208,3 @@ export const viewStory = async (req, res) => {
     .status(200)
     .json({ status: "success", viewsCount: updated.viewsCount });
 };
-
-export const test = async (req, res) => {};
