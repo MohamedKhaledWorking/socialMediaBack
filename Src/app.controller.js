@@ -20,7 +20,7 @@ dotenv.config({ path: path.resolve("Src/Config/.env.dev") });
 const app = express();
 const PORT = process.env.PORT;
 
-app.use(cors());
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 
 app.get("/", (req, res) => {
@@ -53,10 +53,7 @@ const bootstrapFunction = () => {
   runIO(server);
 };
 
-
 export default bootstrapFunction;
-
-
 
 // gaber
 // eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4YWNjNDFmYjc2YWQ0MTQ4NThhY2M5MiIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzU2MTUyOTIyLCJleHAiOjE3NTYxNjAxMjJ9._EZBq7RZNS3zvhtOS3O4I61idJab360WOaJNZVJNzFA
