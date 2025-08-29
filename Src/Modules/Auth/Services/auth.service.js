@@ -32,15 +32,6 @@ export const registerController = async (req, res) => {
   );
   const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
 
-  await UserModel.create({
-    ...data,
-    password: hashedPassword,
-    phone: encryptedPhone,
-    address: encryptedAddress,
-    otp: hashedOtp,
-    otpExpires,
-  });
-
   sendEmail({
     to: data.email,
     subject: "Welcome to SocialUs",
@@ -51,6 +42,15 @@ export const registerController = async (req, res) => {
       validFor: "5 minutes",
       operation: "verify your email",
     }),
+  });
+
+  await UserModel.create({
+    ...data,
+    password: hashedPassword,
+    phone: encryptedPhone,
+    address: encryptedAddress,
+    otp: hashedOtp,
+    otpExpires,
   });
 
   res.status(201).json({
@@ -66,24 +66,32 @@ export const loginController = async (req, res) => {
     "-otp -otpExpires  -coverImage "
   );
   if (!user) {
-    return res.status(404).json({status: "failure", message: "Email or password are invalid" });
+    return res
+      .status(404)
+      .json({ status: "failure", message: "Email or password are invalid" });
   }
 
   const isMatch = bcrypt.compareSync(password, user.password);
   if (!isMatch) {
-    return res.status(404).json({status: "failure",  message: "Email or password are invalid" });
+    return res
+      .status(404)
+      .json({ status: "failure", message: "Email or password are invalid" });
   }
 
   if (!user.isVerified) {
     return res
       .status(403)
-      .json({status: "failure",  message: "Please verify your account first" });
+      .json({ status: "failure", message: "Please verify your account first" });
   }
   if (user.isDeleted) {
-    return res.status(403).json({status: "failure", message: "Account is deactivated" });
+    return res
+      .status(403)
+      .json({ status: "failure", message: "Account is deactivated" });
   }
-  if(user.isBanned){
-    return res.status(403).json({status: "failure", message: "Account is banned" });
+  if (user.isBanned) {
+    return res
+      .status(403)
+      .json({ status: "failure", message: "Account is banned" });
   }
 
   const accessToken = jwt.sign(
@@ -226,4 +234,3 @@ export const logoutController = async (req, res) => {
     success: true,
   });
 };
-
