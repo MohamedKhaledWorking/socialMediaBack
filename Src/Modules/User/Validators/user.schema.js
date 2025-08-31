@@ -1,6 +1,12 @@
 import Joi from "joi";
 import { generalValidationFields } from "../../../Utils/generalValidationFields.utils.js";
 
+const urlField = Joi.string()
+  .trim()
+  .uri({ scheme: ["http", "https"] })
+  .empty("")
+  .messages({ "string.uri": "must be a valid URL starting with http(s)" });
+
 export const createUserSchema = Joi.object().keys({
   username: generalValidationFields.username.required().messages({
     "string.empty": "Username is required",
@@ -58,9 +64,7 @@ export const createUserSchema = Joi.object().keys({
   }),
 });
 
-
-
-export const updateUserSchema = Joi.object().keys({
+export const updateUserSchema = Joi.object({
   username: generalValidationFields.username.messages({
     "string.min": "Username must be at least {#limit}characters long",
     "string.max": "Username must be at most {#limit} characters long",
@@ -71,12 +75,8 @@ export const updateUserSchema = Joi.object().keys({
   coverImage: generalValidationFields.coverImage.messages({
     "string.uri": "Cover image must be a valid URL",
   }),
-  profileImageId: Joi.string().messages({
-    "string.uri": "Profile image id must be a string",
-  }),
-  coverImageId: Joi.string().messages({
-    "string.uri": "Cover image id must be a string",
-  }),
+  profileImageId: Joi.string(),
+  coverImageId: Joi.string(),
   bio: generalValidationFields.bio.messages({
     "string.max": "Bio must be at most {#limit} characters long",
   }),
@@ -96,29 +96,31 @@ export const updateUserSchema = Joi.object().keys({
   status: generalValidationFields.status.messages({
     "string.valid": "Status must be 'active', 'inactive', or 'frozen'",
   }),
+
+  // Accept either an object (preferred) or a JSON string (when coming via multipart)
   socialLinks: Joi.alternatives()
-  .try(
-    Joi.object({
-      facebook: urlField,
-      instagram: urlField,
-      twitter: urlField,
-      github: urlField,
-      tiktok: urlField,
-    })
-      .min(1) // at least one link if the object exists
-      .optional(),
-    Joi.string()
-      .custom((value, helpers) => {
-        try {
-          const obj = JSON.parse(value);
-          return obj; // convert string -> object
-        } catch {
-          return helpers.error("any.invalid");
-        }
+    .try(
+      Joi.object({
+        facebook: urlField.label("Facebook link"),
+        instagram: urlField.label("Instagram link"),
+        twitter: urlField.label("Twitter link"),
+        github: urlField.label("GitHub link"),
+        tiktok: urlField.label("TikTok link"),
       })
-      .messages({ "any.invalid": "socialLinks must be valid JSON" })
-  )
-  .optional(),
+        .min(1) // if the object exists, at least one valid URL
+        .optional(),
+
+      Joi.string()
+        .custom((value, helpers) => {
+          try {
+            const parsed = JSON.parse(value);
+            if (parsed && typeof parsed === "object") return parsed;
+          } catch {}
+          return helpers.error("any.invalid");
+        })
+        .messages({ "any.invalid": "socialLinks must be valid JSON" })
+    )
+    .optional(),
 }).prefs({ convert: true });
 
 export const updateUserPasswordSchema = Joi.object().keys({
