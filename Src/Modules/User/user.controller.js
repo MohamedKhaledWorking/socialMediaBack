@@ -49,11 +49,7 @@ userRoutes.get(
   errorHandler(getAllBannedUsers)
 );
 
-userRoutes.get(
-  "/getUser/:userId",
-  authMiddleware,
-  errorHandler(getUserById)
-);
+userRoutes.get("/getUser/:userId", authMiddleware, errorHandler(getUserById));
 
 userRoutes.post(
   "/create-user",
@@ -75,6 +71,15 @@ userRoutes.patch(
     { name: "coverImage", maxCount: 1 },
   ]),
   validateSchema(updateUserSchema),
+  (req, res, next) => {
+    if (typeof req.body?.socialLinks === "string") {
+      try {
+        req.body.socialLinks = JSON.parse(req.body.socialLinks);
+      } catch {
+      }
+    }
+    next();
+  },
   errorHandler(updateProfile)
 );
 

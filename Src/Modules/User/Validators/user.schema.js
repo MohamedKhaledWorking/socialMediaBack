@@ -58,60 +58,38 @@ export const createUserSchema = Joi.object().keys({
   }),
 });
 
-export const updateUserSchema = Joi.object().keys({
+const urlField = Joi.string().uri().empty("").optional();
+
+export const updateUserSchema = Joi.object({
   username: generalValidationFields.username.messages({
     "string.min": "Username must be at least {#limit}characters long",
     "string.max": "Username must be at most {#limit} characters long",
   }),
-  profileImage: generalValidationFields.profileImage.messages({
-    "string.uri": "Profile image must be a valid URL",
-  }),
-  coverImage: generalValidationFields.coverImage.messages({
-    "string.uri": "Cover image must be a valid URL",
-  }),
-  profileImageId: Joi.string().messages({
-    "string.uri": "Profile image id must be a string",
-  }),
-  coverImageId: Joi.string().messages({
-    "string.uri": "Cover image id must be a string",
-  }),
-  bio: generalValidationFields.bio.messages({
-    "string.max": "Bio must be at most {#limit} characters long",
-  }),
-  phone: generalValidationFields.phone.messages({
-    "string.pattern.base":
-      "Phone number must be in the format 01012345678 or +201012345678",
-  }),
-  address: generalValidationFields.address.empty(""),
-  birthday: generalValidationFields.birthday.messages({
-    "date.base": "Birthday must be a valid date",
-  }),
-  authorization: generalValidationFields.authorization.messages({
-    "any.required": "Authorization header is required",
-    "string.pattern.base":
-      "Authorization header must be in Bearer token format",
-  }),
-  status: generalValidationFields.status.messages({
-    "string.valid": "Status must be 'active', 'inactive', or 'frozen'",
-  }),
-  socialLinks: Joi.object({
-    facebook: Joi.string().uri().messages({
-      "string.uri": "Facebook link must be a valid URL",
-    }),
-    instagram: Joi.string().uri().messages({
-      "string.uri": "Instagram link must be a valid URL",
-    }),
-    twitter: Joi.string().uri().messages({
-      "string.uri": "Twitter link must be a valid URL",
-    }),
-    tiktok: Joi.string().uri().messages({
-      "string.uri": "TikTok link must be a valid URL",
-    }),
-    github: Joi.string().uri().messages({
-      "string.uri": "GitHub link must be a valid URL",
-    }),
-  }).optional(),
-});
+  // ... your other fields ...
+  socialLinks: Joi.alternatives()
+    .try(
+      Joi.object({
+        facebook: urlField,
+        instagram: urlField,
+        twitter: urlField,
+        github: urlField,
+        tiktok: urlField,
+      })
+        .min(1) // at least one link if the object exists
+        .optional(),
+      Joi.string()
+        .custom((value, helpers) => {
+          try {
+            const obj = JSON.parse(value);
+            return obj; // convert string -> object
+          } catch {
+            return helpers.error("any.invalid");
+          }
+        })
+        .messages({ "any.invalid": "socialLinks must be valid JSON" })
+    )
+    .optional(),
+}).prefs({ convert: true });
 
 export const updateUserPasswordSchema = Joi.object().keys({
   oldPassword: generalValidationFields.password.required().messages({
