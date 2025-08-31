@@ -70,16 +70,15 @@ userRoutes.patch(
     { name: "profileImage", maxCount: 1 },
     { name: "coverImage", maxCount: 1 },
   ]),
-  validateSchema(updateUserSchema),
   (req, res, next) => {
     if (typeof req.body?.socialLinks === "string") {
       try {
         req.body.socialLinks = JSON.parse(req.body.socialLinks);
-      } catch {
-      }
+      } catch {}
     }
     next();
   },
+  validateSchema(updateUserSchema),
   errorHandler(updateProfile)
 );
 
