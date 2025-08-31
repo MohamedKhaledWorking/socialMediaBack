@@ -130,6 +130,10 @@ export const getStoriesFeed = async (req, res) => {
   const raw = await StoryModel.find(filter)
     .sort({ createdAt: -1, _id: -1 })
     .select("_id user caption link createdAt media thumbnail")
+    .populate({
+      path: "user",
+      select: "username profileImage",
+    })
     .lean();
 
   const isMine = (uid) => String(uid) === String(req.user._id);
