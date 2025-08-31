@@ -30,6 +30,7 @@ import {
   updateUserSchema,
 } from "./Validators/user.schema.js";
 import { Multer } from "../../Middleware/multer.middleware.js";
+import normalizeUpdateBody from "../../Middleware/normalizeUpdateBody.middleware.js";
 
 export const userRoutes = Router();
 
@@ -70,16 +71,9 @@ userRoutes.patch(
     { name: "profileImage", maxCount: 1 },
     { name: "coverImage", maxCount: 1 },
   ]),
-  (req, res, next) => {
-    if (typeof req.body?.socialLinks === "string") {
-      try {
-        req.body.socialLinks = JSON.parse(req.body.socialLinks);
-      } catch {}
-    }
-    next();
-  },
+  normalizeUpdateBody, // <— add this BEFORE Joi validation
   validateSchema(updateUserSchema),
-  errorHandler(updateProfile)
+  errorHandler(updateProfile) // or asyncHandler(updateProfile)
 );
 
 userRoutes.patch(
