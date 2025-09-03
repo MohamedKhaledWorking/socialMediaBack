@@ -1,33 +1,65 @@
-import { createComment, deleteComment, listComments } from "./services/comment.service.js";
+// Modules/Comment/comment.controller.js
+import {
+  createComment,
+  deleteComment,
+  listComments,
+} from "./services/comment.service.js";
 
-export const httpCreateComment = async (req, res) => {
-  const { postId } = req.params;
-  const { content, media } = req.body;
-  const userId = req.user._id;
-
-  if (!content || !content.trim()) {
-    return res.status(400).json({ status: "error", message: "Content is required" });
+export async function httpCreateComment(req, res) {
+  try {
+    const { postId, content, media, parentId } = req.body;
+    const userId = req.user._id;
+    const { comment, commentsCount } = await createComment({
+      postId,
+      userId,
+      content,
+      media,
+      parentId,
+    });
+    res.json({ status: "success", comment, commentsCount });
+  } catch (e) {
+    res
+      .status(400)
+      .json({ status: "fail", message: e.message || "Failed to add comment" });
   }
+}
 
-  const { comment, commentsCount } = await createComment({ postId, userId, content: content.trim(), media });
-  return res.json({ status: "success", comment, commentsCount });
-};
-
-export const httpDeleteComment = async (req, res) => {
-  const { commentId } = req.params;
-  const userId = req.user._id;
-
-  const result = await deleteComment({ commentId, userId });
-  if (!result.ok) {
-    return res.status(404).json({ status: "error", message: "Comment not found" });
+export async function httpDeleteComment(req, res) {
+  try {
+    const userId = req.user._id;
+    const { commentId } = req.params;
+    const result = await deleteComment({ commentId, userId });
+    if (!result.ok)
+      return res
+        .status(404)
+        .json({ status: "fail", message: "Comment not found" });
+    res.json({
+      status: "success",
+      postId: result.postId,
+      commentsCount: result.commentsCount,
+    });
+  } catch (e) {
+    res
+      .status(400)
+      .json({
+        status: "fail",
+        message: e.message || "Failed to delete comment",
+      });
   }
-  return res.json({ status: "success", postId: result.postId, commentsCount: result.commentsCount });
-};
+}
 
-export const httpListComments = async (req, res) => {
-  const { postId } = req.params;
-  const { page = 1, limit = 20 } = req.query;
-
-  const data = await listComments({ postId, page, limit });
-  return res.json({ status: "success", ...data });
-};
+export async function httpListComments(req, res) {
+  try {
+    const { postId } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+    const data = await listComments({ postId, page, limit });
+    res.json({ status: "success", ...data });
+  } catch (e) {
+    res
+      .status(400)
+      .json({
+        status: "fail",
+        message: e.message || "Failed to fetch comments",
+      });
+  }
+}
