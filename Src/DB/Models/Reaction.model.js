@@ -1,5 +1,6 @@
 import mongoose, { Schema } from "mongoose";
-import { REACTION_KINDS } from "../../Constant/constants.js";
+
+export const REACTION_KINDS = ["like", "love", "haha", "wow", "sad", "angry"]; // ← match UI
 
 const ReactionSchema = new Schema(
   {

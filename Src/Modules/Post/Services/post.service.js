@@ -107,31 +107,60 @@ export const updatePost = async (req, res) => {
 };
 
 export const getAllPosts = async (req, res) => {
-  const { page = 1, limit = 5, privacy = "public", postType, mood } = req.query;
-  const skip = (page - 1) * limit;
+  // page/limit as numbers
+  const pageNum = Math.max(1, parseInt(req.query.page ?? 1, 10));
+  const limitNum = Math.max(1, parseInt(req.query.limit ?? 5, 10));
+  const skip = (pageNum - 1) * limitNum;
+
+  const { privacy = "public", postType, mood } = req.query;
 
   const filter = { privacy };
-
   if (postType) filter.postType = postType;
   if (mood) filter.mood = mood;
 
+  // 1) fetch posts
   const posts = await PostModel.find(filter)
     .populate("user", "username profileImage email")
     .sort({ createdAt: -1 })
     .skip(skip)
-    .limit(parseInt(limit));
+    .limit(limitNum)
+    .lean(); // <-- plain objects so we can enrich easily
 
   const total = await PostModel.countDocuments(filter);
 
+  // 2) attach this viewer's reaction to each post (if logged in)
+  const userId = req.user?._id; // make sure this endpoint uses auth OR an "optional auth" that sets req.user if token exists
+  let reactMap = new Map();
+
+  if (userId && posts.length) {
+    const postIds = posts.map((p) => p._id);
+    const myReacts = await ReactionModel.find({
+      post: { $in: postIds },
+      user: userId,
+    })
+      .select("post kind")
+      .lean();
+
+    reactMap = new Map(myReacts.map((r) => [String(r.post), r.kind]));
+  }
+
+  const enriched = posts.map((p) => ({
+    ...p,
+    // ensure the frontend has these:
+    myReaction: reactMap.get(String(p._id)) || null,
+    reactions: p.reactions || {}, // { like, love, haha, wow, sad, angry }
+    likesCount: typeof p.likesCount === "number" ? p.likesCount : 0,
+  }));
+
   return res.status(200).json({
     status: "success",
-    posts,
+    posts: enriched,
     pagination: {
-      currentPage: parseInt(page),
-      totalPages: Math.ceil(total / limit),
+      currentPage: pageNum,
+      totalPages: Math.ceil(total / limitNum),
       totalPosts: total,
       hasNext: skip + posts.length < total,
-      hasPrev: page > 1,
+      hasPrev: pageNum > 1,
     },
   });
 };
