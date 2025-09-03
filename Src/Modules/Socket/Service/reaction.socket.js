@@ -1,3 +1,7 @@
+import mongoose from "mongoose";
+import { ReactionModel } from "../../../DB/Models/Reaction.model.js";
+import { PostModel } from "../../../DB/Models/Post.model.js";
+
 const ALLOWED = ["like", "love", "haha", "wow", "sad", "angry"];
 const room = (postId) => `post:${postId}`;
 

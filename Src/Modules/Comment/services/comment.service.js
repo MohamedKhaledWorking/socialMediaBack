@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { CommentModel } from "../../../DB/Models/Comment.model.js";
+import { PostModel } from "../../../DB/Models/Post.model.js";
 
 export async function createComment({ postId, userId, content, media }) {
   const session = await mongoose.startSession();
