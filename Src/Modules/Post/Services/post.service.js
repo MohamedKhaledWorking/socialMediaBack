@@ -249,6 +249,56 @@ export const getMyPosts = async (req, res) => {
   });
 };
 
+export const getFriendsPosts = async (req, res) => {
+  const userId = req.user._id; // this route is authed
+  const { page = 1, limit = 10 } = req.query;
+  const pageNum = Math.max(1, parseInt(page, 10));
+  const limitNum = Math.max(1, parseInt(limit, 10));
+  const skip = (pageNum - 1) * limitNum;
+
+  const friends = await FriendModel.find({ createdBy: userId }).lean();
+  const friendIds = friends.map((f) => f.friendId);
+  const posts = await PostModel.find({ user: { $in: friendIds } })
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limitNum)
+    .lean();
+
+  const total = await PostModel.countDocuments({ user: { $in: friendIds } });
+
+  // attach myReaction
+  let reactMap = new Map();
+  if (posts.length) {
+    const postIds = posts.map((p) => p._id);
+    const myReacts = await ReactionModel.find({
+      post: { $in: postIds },
+      user: userId,
+    })
+      .select("post kind")
+      .lean();
+    reactMap = new Map(myReacts.map((r) => [String(r.post), r.kind]));
+  }
+
+  const enriched = posts.map((p) => ({
+    ...p,
+    myReaction: reactMap.get(String(p._id)) || null,
+    reactions: p.reactions || {},
+    likesCount: typeof p.likesCount === "number" ? p.likesCount : 0,
+  }));
+
+  res.json({
+    status: "success",
+    posts: enriched,
+    pagination: {
+      currentPage: pageNum,
+      totalPages: Math.ceil(total / limitNum),
+      totalPosts: total,
+      hasNext: skip + posts.length < total,
+      hasPrev: pageNum > 1,
+    },
+  });
+};
+
 export const getPostsByUser = async (req, res) => {
   const { userId } = req.params;
   const currentUserId = req.user._id;
