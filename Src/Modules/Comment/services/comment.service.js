@@ -7,7 +7,10 @@ export async function createComment({ postId, userId, content, media }) {
   let created;
   try {
     await session.withTransaction(async () => {
-      created = await CommentModel.create([{ post: postId, user: userId, content, media }], { session });
+      created = await CommentModel.create(
+        [{ post: postId, user: userId, content, media }],
+        { session }
+      );
       await PostModel.updateOne(
         { _id: postId },
         { $inc: { commentsCount: 1 } },
@@ -18,10 +21,12 @@ export async function createComment({ postId, userId, content, media }) {
     session.endSession?.();
   }
 
-  // populate user
   const comment = await CommentModel.findById(created[0]._id)
     .populate("user", "username profileImage")
     .lean();
+
+  // normalize id
+  comment.id = String(comment._id);
 
   const post = await PostModel.findById(postId, { commentsCount: 1 }).lean();
   const commentsCount = post?.commentsCount ?? 0;
@@ -36,7 +41,10 @@ export async function deleteComment({ commentId, userId }) {
 
   try {
     await session.withTransaction(async () => {
-      const doc = await CommentModel.findOne({ _id: commentId, user: userId }).session(session);
+      const doc = await CommentModel.findOne({
+        _id: commentId,
+        user: userId,
+      }).session(session);
       if (!doc) return;
 
       postId = doc.post;
@@ -47,12 +55,7 @@ export async function deleteComment({ commentId, userId }) {
         {
           $set: {
             commentsCount: {
-              $max: [
-                {
-                  $subtract: [{ $ifNull: ["$commentsCount", 0] }, 1],
-                },
-                0,
-              ],
+              $max: [{ $subtract: [{ $ifNull: ["$commentsCount", 0] }, 1] }, 0],
             },
           },
         },
@@ -66,7 +69,11 @@ export async function deleteComment({ commentId, userId }) {
 
   if (!ok || !postId) return { ok: false };
   const post = await PostModel.findById(postId, { commentsCount: 1 }).lean();
-  return { ok: true, postId: String(postId), commentsCount: post?.commentsCount ?? 0 };
+  return {
+    ok: true,
+    postId: String(postId),
+    commentsCount: post?.commentsCount ?? 0,
+  };
 }
 
 export async function listComments({ postId, page = 1, limit = 20 }) {
@@ -84,7 +91,6 @@ export async function listComments({ postId, page = 1, limit = 20 }) {
     CommentModel.countDocuments({ post: postId }),
   ]);
 
-  // normalize id
   const comments = items.map((c) => ({ ...c, id: String(c._id) }));
 
   return {

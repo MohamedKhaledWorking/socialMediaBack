@@ -5,8 +5,7 @@ import { PostModel } from "../../../DB/Models/Post.model.js";
 const ALLOWED = ["like", "love", "haha", "wow", "sad", "angry"];
 const room = (postId) => `post:${postId}`;
 
-async function computeAndPersistLikeSum(postId, session) {
-  // Keep likesCount == sum of all reaction buckets
+async function recomputeLikesSum(postId, session) {
   await PostModel.updateOne(
     { _id: postId },
     [
@@ -34,14 +33,8 @@ async function readCounts(postId, session = null) {
     .session(session)
     .lean();
   return {
-    counts: post?.reactions || {
-      like: 0,
-      love: 0,
-      haha: 0,
-      wow: 0,
-      sad: 0,
-      angry: 0,
-    },
+    counts:
+      post?.reactions ?? { like: 0, love: 0, haha: 0, wow: 0, sad: 0, angry: 0 },
     likesCount: post?.likesCount ?? 0,
   };
 }
@@ -49,48 +42,34 @@ async function readCounts(postId, session = null) {
 export function registerReactionIO(io, socket) {
   const userId = socket.user.id;
 
-  socket.on("post:join", ({ postId }) => {
-    if (postId) socket.join(room(postId));
-  });
-  socket.on("post:leave", ({ postId }) => {
-    if (postId) socket.leave(room(postId));
-  });
+  socket.on("post:join", ({ postId }) => postId && socket.join(room(postId)));
+  socket.on("post:leave", ({ postId }) => postId && socket.leave(room(postId)));
 
-  // Upsert now toggles OFF if same kind is selected again
+  // IMPORTANT: this ACK now returns myReaction = null when toggling OFF
   socket.on("reaction:upsert", async ({ postId, type }, ack) => {
     try {
-      if (!postId || !ALLOWED.includes(type))
-        throw new Error("Invalid payload");
+      if (!postId || !ALLOWED.includes(type)) throw new Error("Invalid payload");
+
+      let myReaction = type; // default; will flip to null if we toggled off
       const session = await mongoose.startSession();
       await session.withTransaction(async () => {
-        const prev = await ReactionModel.findOne({
-          post: postId,
-          user: userId,
-        }).session(session);
+        const prev = await ReactionModel.findOne({ post: postId, user: userId }).session(session);
 
         if (!prev) {
-          // first time react
-          await ReactionModel.create(
-            [{ post: postId, user: userId, kind: type }],
-            { session }
-          );
-          await PostModel.updateOne(
-            { _id: postId },
-            { $inc: { [`reactions.${type}`]: 1 } },
-            { session }
-          );
+          // first time
+          await ReactionModel.create([{ post: postId, user: userId, kind: type }], { session });
+          await PostModel.updateOne({ _id: postId }, { $inc: { [`reactions.${type}`]: 1 } }, { session });
         } else if (prev.kind === type) {
-          // SAME kind -> toggle off (remove)
+          // SAME kind => toggle OFF
           await ReactionModel.deleteOne({ _id: prev._id }).session(session);
+          myReaction = null;
           await PostModel.updateOne(
             { _id: postId },
             {
               $set: {
                 [`reactions.${type}`]: {
                   $max: [
-                    {
-                      $subtract: [{ $ifNull: [`$reactions.${type}`, 0] }, 1],
-                    },
+                    { $subtract: [{ $ifNull: [`$reactions.${type}`, 0] }, 1] },
                     0,
                   ],
                 },
@@ -110,7 +89,7 @@ export function registerReactionIO(io, socket) {
           );
         }
 
-        await computeAndPersistLikeSum(postId, session);
+        await recomputeLikesSum(postId, session);
       });
       session.endSession?.();
 
@@ -122,7 +101,7 @@ export function registerReactionIO(io, socket) {
         likesCount,
       });
 
-      ack?.({ ok: true, postId, counts, likesCount, myReaction: type });
+      ack?.({ ok: true, postId, counts, likesCount, myReaction });
     } catch (err) {
       ack?.({ ok: false, message: err?.message || "Failed to react" });
     }
@@ -131,6 +110,7 @@ export function registerReactionIO(io, socket) {
   socket.on("reaction:remove", async ({ postId }, ack) => {
     try {
       if (!postId) throw new Error("Invalid payload");
+
       const session = await mongoose.startSession();
       await session.withTransaction(async () => {
         const doc = await ReactionModel.findOneAndDelete(
@@ -145,9 +125,7 @@ export function registerReactionIO(io, socket) {
               $set: {
                 [`reactions.${kind}`]: {
                   $max: [
-                    {
-                      $subtract: [{ $ifNull: [`$reactions.${kind}`, 0] }, 1],
-                    },
+                    { $subtract: [{ $ifNull: [`$reactions.${kind}`, 0] }, 1] },
                     0,
                   ],
                 },
@@ -155,7 +133,7 @@ export function registerReactionIO(io, socket) {
             },
             { session }
           );
-          await computeAndPersistLikeSum(postId, session);
+          await recomputeLikesSum(postId, session);
         }
       });
       session.endSession?.();
@@ -170,10 +148,7 @@ export function registerReactionIO(io, socket) {
 
       ack?.({ ok: true, postId, counts, likesCount, myReaction: null });
     } catch (err) {
-      ack?.({
-        ok: false,
-        message: err?.message || "Failed to remove reaction",
-      });
+      ack?.({ ok: false, message: err?.message || "Failed to remove reaction" });
     }
   });
 }
