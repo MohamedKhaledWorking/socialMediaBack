@@ -2,6 +2,7 @@ import { PostModel } from "../../../DB/Models/Post.model.js";
 import { UserModel } from "../../../DB/Models/User.model.js";
 import { ReactionModel } from "../../../DB/Models/Reaction.model.js";
 import { cloudinary } from "../../../Utils/cloudinary.utils.js";
+import { FriendModel } from "../../../DB/Models/Friend.model.js";
 
 export const createPost = async (req, res) => {
   const data = req.body;
@@ -249,24 +250,41 @@ export const getMyPosts = async (req, res) => {
   });
 };
 
-export const getFriendsPosts = async (req, res) => {
-  const userId = req.user._id; // this route is authed
-  const { page = 1, limit = 10 } = req.query;
-  const pageNum = Math.max(1, parseInt(page, 10));
-  const limitNum = Math.max(1, parseInt(limit, 10));
-  const skip = (pageNum - 1) * limitNum;
+export const getFeedPosts = async (req, res) => {
+  const userId = req.user._id; // authed user
 
-  const friends = await FriendModel.find({ createdBy: userId }).lean();
-  const friendIds = friends.map((f) => f.friendId);
-  const posts = await PostModel.find({ user: { $in: friendIds } })
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limitNum)
+  const page = Math.max(1, parseInt(req.query.page ?? 1, 10));
+  const limit = Math.max(1, parseInt(req.query.limit ?? 10, 10));
+  const skip = (page - 1) * limit;
+
+  // 1) collect friend ids (one-way friend edge: createdBy -> friendId)
+  const friends = await FriendModel.find({ createdBy: userId })
+    .select("friendId")
     .lean();
+  const friendIds = [
+    ...new Set(friends.map((f) => f.friendId).filter(Boolean)),
+  ];
 
-  const total = await PostModel.countDocuments({ user: { $in: friendIds } });
+  // 2) build filter = my posts (any privacy) OR friends' posts (public|friends)
+  const filter = {
+    $or: [
+      { user: userId },
+      { user: { $in: friendIds }, privacy: { $in: ["public", "friends"] } },
+    ],
+  };
 
-  // attach myReaction
+  // 3) query & count in parallel
+  const [posts, total] = await Promise.all([
+    PostModel.find(filter)
+      .populate("user", "username profileImage email")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    PostModel.countDocuments(filter),
+  ]);
+
+  // 4) attach myReaction for these posts
   let reactMap = new Map();
   if (posts.length) {
     const postIds = posts.map((p) => p._id);
@@ -276,29 +294,38 @@ export const getFriendsPosts = async (req, res) => {
     })
       .select("post kind")
       .lean();
+
     reactMap = new Map(myReacts.map((r) => [String(r.post), r.kind]));
   }
 
   const enriched = posts.map((p) => ({
     ...p,
     myReaction: reactMap.get(String(p._id)) || null,
-    reactions: p.reactions || {},
+    reactions: p.reactions || {
+      like: 0,
+      love: 0,
+      haha: 0,
+      wow: 0,
+      sad: 0,
+      angry: 0,
+    },
     likesCount: typeof p.likesCount === "number" ? p.likesCount : 0,
+    commentsCount: typeof p.commentsCount === "number" ? p.commentsCount : 0,
+    sharedCount: typeof p.sharedCount === "number" ? p.sharedCount : 0,
   }));
 
   res.json({
     status: "success",
     posts: enriched,
     pagination: {
-      currentPage: pageNum,
-      totalPages: Math.ceil(total / limitNum),
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
       totalPosts: total,
       hasNext: skip + posts.length < total,
-      hasPrev: pageNum > 1,
+      hasPrev: page > 1,
     },
   });
 };
-
 export const getPostsByUser = async (req, res) => {
   const { userId } = req.params;
   const currentUserId = req.user._id;

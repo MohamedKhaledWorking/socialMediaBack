@@ -13,6 +13,7 @@ import {
   sharePost,
   getPostsByUser,
   adminDeletePost,
+  getFeedPosts,
 } from "./Services/post.service.js";
 import { validateSchema } from "../../Middleware/validation.middleware.js";
 import {
@@ -62,6 +63,9 @@ postRoutes.get("/my/posts", authMiddleware, errorHandler(getMyPosts));
 // Get posts by a specific user
 postRoutes.get("/user/:userId", authMiddleware, errorHandler(getPostsByUser));
 
+// get the friend posts
+postRoutes.get("/friends/posts", authMiddleware, errorHandler(getFeedPosts));
+
 // Get a specific post by ID
 postRoutes.get("/:postId", authMiddleware, errorHandler(getPostById));
 
@@ -69,7 +73,12 @@ postRoutes.get("/:postId", authMiddleware, errorHandler(getPostById));
 postRoutes.delete("/:postId", authMiddleware, errorHandler(deletePost));
 
 // Delete a post
-postRoutes.delete("/admin/:postId", authMiddleware , authorizeRoles("admin"), errorHandler(adminDeletePost));
+postRoutes.delete(
+  "/admin/:postId",
+  authMiddleware,
+  authorizeRoles("admin"),
+  errorHandler(adminDeletePost)
+);
 
 // Like a post
 postRoutes.post("/:postId/like", authMiddleware, errorHandler(likePost));
