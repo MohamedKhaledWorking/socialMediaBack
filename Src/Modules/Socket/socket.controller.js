@@ -1,31 +1,36 @@
-// Src/Socket/runIO.js
 import { Server } from "socket.io";
 import verifySocketToken from "../../Middleware/socket/verifySocketToken.js";
 import { registerSocket, unregisterSocket } from "./Service/socket.service.js";
 import { sendMessage } from "./Service/message.service.js";
-import { registerReactionIO } from "./Service/reaction.socket.js";
+import { registerCommentSocket } from "./Service/comment.socket.js";
+// import { registerReactionSocket } from "./Service/reaction.socket.js"; // if you split reactions
 
 export const runIO = (server) => {
   const io = new Server(server, { cors: { origin: "*" } });
-
-  // Attach JWT to socket.user
   io.use(verifySocketToken);
 
   io.on("connection", async (socket) => {
     const userId = socket.user.id;
 
-    // Join a personal room so we can target this user by their id
     socket.join(userId);
-
-    // optionally keep socket mapping (your service)
     await registerSocket(userId, socket.id);
 
-    // Let client know socket is ready (optional)
-    socket.emit("socket:ready", { userId, socketId: socket.id });
+    // let clients join per-post rooms
+    socket.on(
+      "post:join",
+      ({ postId }) => postId && socket.join(`post:${postId}`)
+    );
+    socket.on(
+      "post:leave",
+      ({ postId }) => postId && socket.leave(`post:${postId}`)
+    );
 
-    // Register message handler (pass io so we can emit to rooms)
+    // existing message handler
     sendMessage(io, socket);
-    registerReactionIO(io, socket);
+
+    // NEW: comments + reactions
+    registerCommentSocket(io, socket);
+    // registerReactionSocket(io, socket); // (your existing reaction code if you split it)
 
     socket.on("disconnect", async () => {
       await unregisterSocket(userId);
