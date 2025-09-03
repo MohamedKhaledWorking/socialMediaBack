@@ -202,27 +202,49 @@ export const getPostById = async (req, res) => {
 };
 
 export const getMyPosts = async (req, res) => {
-  const userId = req.user._id;
   const { page = 1, limit = 10 } = req.query;
-  const skip = (page - 1) * limit;
+  const pageNum = Math.max(1, parseInt(page, 10));
+  const limitNum = Math.max(1, parseInt(limit, 10));
+  const skip = (pageNum - 1) * limitNum;
 
+  const userId = req.user._id; // this route is authed
   const posts = await PostModel.find({ user: userId })
-    .populate("user", "username profileImage")
     .sort({ createdAt: -1 })
     .skip(skip)
-    .limit(parseInt(limit));
+    .limit(limitNum)
+    .lean();
 
   const total = await PostModel.countDocuments({ user: userId });
 
-  return res.status(200).json({
+  // attach myReaction
+  let reactMap = new Map();
+  if (posts.length) {
+    const postIds = posts.map((p) => p._id);
+    const myReacts = await ReactionModel.find({
+      post: { $in: postIds },
+      user: userId,
+    })
+      .select("post kind")
+      .lean();
+    reactMap = new Map(myReacts.map((r) => [String(r.post), r.kind]));
+  }
+
+  const enriched = posts.map((p) => ({
+    ...p,
+    myReaction: reactMap.get(String(p._id)) || null,
+    reactions: p.reactions || {},
+    likesCount: typeof p.likesCount === "number" ? p.likesCount : 0,
+  }));
+
+  res.json({
     status: "success",
-    posts,
+    posts: enriched,
     pagination: {
-      currentPage: parseInt(page),
-      totalPages: Math.ceil(total / limit),
+      currentPage: pageNum,
+      totalPages: Math.ceil(total / limitNum),
       totalPosts: total,
       hasNext: skip + posts.length < total,
-      hasPrev: page > 1,
+      hasPrev: pageNum > 1,
     },
   });
 };
