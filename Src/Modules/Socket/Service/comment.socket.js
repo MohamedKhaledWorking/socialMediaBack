@@ -1,14 +1,20 @@
-import { createComment, deleteComment, listComments }from "../../Comment/services/comment.service.js";
+import {
+  createComment,
+  deleteComment,
+  listComments,
+} from "../../Comment/services/comment.service.js";
+
+const room = (postId) => `post:${postId}`;
 
 export function registerCommentSocket(io, socket) {
-  // Add a comment
+  // Add
   socket.on("comment:add", async (payload, ack) => {
     try {
       const { postId, content, media } = payload || {};
-      if (!postId || !content?.trim()) {
+      if (!postId || !content?.trim())
         return ack?.({ ok: false, message: "postId and content are required" });
-      }
-      const userId = socket.user.id; // set by verifySocketToken
+
+      const userId = socket.user.id;
       const { comment, commentsCount } = await createComment({
         postId,
         userId,
@@ -16,46 +22,54 @@ export function registerCommentSocket(io, socket) {
         media,
       });
 
-      // notify all watchers of this post
-      io.to(`post:${postId}`).emit("comment:created", { postId, comment, commentsCount });
-
-      return ack?.({ ok: true, comment, commentsCount });
+      io.to(room(postId)).emit("comment:created", {
+        postId,
+        comment,
+        commentsCount,
+      });
+      ack?.({ ok: true, comment, commentsCount });
     } catch (err) {
-      return ack?.({ ok: false, message: err?.message || "Failed to add comment" });
+      ack?.({ ok: false, message: err?.message || "Failed to add comment" });
     }
   });
 
-  // Delete a comment (author only)
+  // Delete
   socket.on("comment:delete", async (payload, ack) => {
     try {
       const { commentId } = payload || {};
-      if (!commentId) return ack?.({ ok: false, message: "commentId is required" });
+      if (!commentId)
+        return ack?.({ ok: false, message: "commentId is required" });
 
       const userId = socket.user.id;
       const result = await deleteComment({ commentId, userId });
       if (!result.ok) return ack?.({ ok: false, message: "Comment not found" });
 
-      io.to(`post:${result.postId}`).emit("comment:deleted", {
+      io.to(room(result.postId)).emit("comment:deleted", {
         postId: result.postId,
         commentId,
         commentsCount: result.commentsCount,
       });
 
-      return ack?.({ ok: true, postId: result.postId, commentsCount: result.commentsCount });
+      ack?.({
+        ok: true,
+        postId: result.postId,
+        commentsCount: result.commentsCount,
+      });
     } catch (err) {
-      return ack?.({ ok: false, message: err?.message || "Failed to delete comment" });
+      ack?.({ ok: false, message: err?.message || "Failed to delete comment" });
     }
   });
 
-  // Paginated fetch over socket (optional)
+  // List (paginated)
   socket.on("comment:list", async (payload, ack) => {
     try {
       const { postId, page = 1, limit = 20 } = payload || {};
       if (!postId) return ack?.({ ok: false, message: "postId is required" });
+
       const data = await listComments({ postId, page, limit });
-      return ack?.({ ok: true, ...data });
+      ack?.({ ok: true, ...data });
     } catch (err) {
-      return ack?.({ ok: false, message: err?.message || "Failed to fetch comments" });
+      ack?.({ ok: false, message: err?.message || "Failed to fetch comments" });
     }
   });
 }
