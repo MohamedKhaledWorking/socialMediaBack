@@ -30,5 +30,7 @@ const PostSchema = new Schema(
 
 PostSchema.index({ content: "text", tags: "text" });
 
+
+
 export const PostModel =
   mongoose.models.Post || mongoose.model("Post", PostSchema);
