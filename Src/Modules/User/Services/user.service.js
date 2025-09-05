@@ -44,10 +44,12 @@ export const getAllBannedUsers = async (req, res) => {
 };
 
 export const getUserById = async (req, res) => {
-  const user = await UserModel.findById(req.params.userId);
+  const user = await UserModel.findById(req.params.userId);''
   if (!user) {
     return res.status(404).json({ status: "failure", error: "User not found" });
   }
+  user.phone = decrypt(user.phone, process.env.PHONE_ENCRYPTION_KEY);
+  user.address = decrypt(user.address, process.env.ADDRESS_ENCRYPTION_KEY);
   return res.status(200).json({ status: "success", user });
 };
 
