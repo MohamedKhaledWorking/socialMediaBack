@@ -251,19 +251,20 @@ export const getMyPosts = async (req, res) => {
 };
 
 export const getFeedPosts = async (req, res) => {
+  console.log("getFeedPosts called by user:", req.user._id, "- fetching posts from friends");
   const userId = req.user._id; // authed user
 
   const page = Math.max(1, parseInt(req.query.page ?? 1, 10));
   const limit = Math.max(1, parseInt(req.query.limit ?? 10, 10));
   const skip = (page - 1) * limit;
 
-  // 1) collect friend ids (one-way friend edge: createdBy -> friendId)
-  const friends = await FriendModel.find({ createdBy: userId })
-    .select("friendId")
+  // 1) collect friend ids from accepted friendships (stored in User.friends array)
+  const currentUser = await UserModel.findById(userId)
+    .select("friends")
     .lean();
-  const friendIds = [
-    ...new Set(friends.map((f) => f.friendId).filter(Boolean)),
-  ];
+  const friendIds = currentUser?.friends || [];
+  
+  console.log(`Found ${friendIds.length} friends for user ${userId}:`, friendIds);
 
   // 2) build filter = my posts (any privacy) OR friends' posts (public|friends)
   const filter = {
