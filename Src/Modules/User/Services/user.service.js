@@ -52,7 +52,7 @@ export const getUserById = async (req, res) => {
   user.address = decrypt(user.address, process.env.ADDRESS_ENCRYPTION_KEY);
   return res.status(200).json({ status: "success", user });
 };
-
+// admin
 export const createAdmin = async (req, res) => {
   const isUserExist = await UserModel.findOne({ email: req.body.email });
   if (isUserExist) {
