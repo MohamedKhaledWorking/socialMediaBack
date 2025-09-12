@@ -20,6 +20,7 @@ export const removeFromBlacklist = (token) => {
 export const getBlacklistSize = () => {
   return blacklistedTokens.size;
 };
+// restart the server
 
 export const logoutController = async (req, res) => {
   try {
