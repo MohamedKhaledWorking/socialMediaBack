@@ -88,3 +88,5 @@ postRoutes.delete("/:postId/like", authMiddleware, errorHandler(unlikePost));
 
 // Share a post
 postRoutes.post("/:postId/share", authMiddleware, errorHandler(sharePost));
+
+// restart the server on railway
